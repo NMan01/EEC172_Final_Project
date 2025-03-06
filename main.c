@@ -75,6 +75,8 @@
 #define DOWN_LEFT 225
 #define DOWN     270
 #define DOWN_RIGHT 315
+#define FIRE_COOLDOWN 25
+#define PLAYER_BULLET_SPEED 10
 
 
 //*****************************************************************************
@@ -123,6 +125,19 @@ volatile bool dataReady = false;
 volatile bool sysTickTimeOut = false;
 volatile int bitCounter = 0;
 volatile unsigned long data = 0;
+
+typedef struct {
+    int x, y;
+    int direction;  // This will be in the range of [0, 360) to represent direction in degrees
+} Projectile;
+
+#define MAX_PROJECTILES 5  // Maximum number of projectiles in flight at once
+
+Projectile projectiles[MAX_PROJECTILES];
+int num_projectiles = 0;
+
+
+
 
 
 //*****************************************************************************
@@ -392,6 +407,46 @@ void eraseCannon(int ball_x, int ball_y, int direction) {
 }
 int proj_velocity = 2;
 
+//FUNCTIONS FOR FIRING CANNON
+
+void fireProjectile(int ball_x, int ball_y, int cannonDir) {
+    if (num_projectiles < MAX_PROJECTILES) {
+        // Initialize the new projectile
+        projectiles[num_projectiles].x = ball_x;  // Start at the cannon's position
+        projectiles[num_projectiles].y = ball_y;
+        projectiles[num_projectiles].direction = cannonDir;
+
+        num_projectiles++;  // Increment the number of active projectiles
+    }
+}
+
+void moveProjectiles() {
+    int i;
+    for (i = 0; i < num_projectiles; i++) {
+        drawCircle(projectiles[i].x, projectiles[i].y, 3, BLACK);  // You can change the size/color
+
+        // Move the projectile in the direction of cannonDir
+        double radian = projectiles[i].direction * (M_PI / 180.0);
+        int move_distance = PLAYER_BULLET_SPEED;  // Distance the projectile moves each update
+        projectiles[i].x += (int)(move_distance * cos(radian));
+        projectiles[i].y -= (int)(move_distance * sin(radian));  // Negative because screen coordinates go downwards
+
+        // Check if the projectile goes off the screen (left, right, top, or bottom)
+        if (projectiles[i].x < 0 || projectiles[i].x >= width() || projectiles[i].y < 0 || projectiles[i].y >= height()) {
+            // Remove projectile by shifting the remaining projectiles down
+            int j;
+            for (j = i; j < num_projectiles - 1; j++) {
+                projectiles[j] = projectiles[j + 1];
+            }
+            num_projectiles--;
+            i--;  // Decrement the index to stay at the same position after removal
+        } else {
+            // Draw the projectile at its new position
+            drawCircle(projectiles[i].x, projectiles[i].y, 3, WHITE);  // You can change the size/color
+        }
+    }
+}
+
 
 
 
@@ -531,6 +586,7 @@ void main()
     static bool buttonPressed = false;
 
     while (1) {
+        Report("%d ", systick_cnt);
 
         //IR STUFF
         //int modAmount = 3;
@@ -561,7 +617,7 @@ void main()
                         button = "?";
                     }
 
-                    systick_cnt = 0;
+                    //systick_cnt = 0;
                 }
 
 
@@ -595,26 +651,31 @@ void main()
         eraseCannon(ball_x, ball_y, cannonDir);
 
 
-        if ( strcmp(button, "LeftButton") == 0 && !buttonPressed) {
+        if ( strcmp(button, "RightButton") == 0 && !buttonPressed) {
             cannonDir -= 45;
             if (cannonDir < 0) cannonDir = 315;
             buttonPressed = true;
         }
-        else if (strcmp(button, "RightButton") == 0 && !buttonPressed) {
+        else if (strcmp(button, "LeftButton") == 0 && !buttonPressed) {
             cannonDir += 45;
             if (cannonDir > 315) cannonDir = 0;
             buttonPressed = true;
         }
-        else if (strcmp(button, "FireButton") == 0 && !buttonPressed) {
+        else if (strcmp(button, "FireButton") == 0 && !buttonPressed && systick_cnt > FIRE_COOLDOWN) {
+
+            fireProjectile(ball_x, ball_y, cannonDir);
             Report("FIRE");
             buttonPressed = true;
+            systick_cnt = 0;
         }
 
         if (strcmp(button, "LeftButton") != 0 && strcmp(button, "RightButton") != 0 && strcmp(button, "FireButton") != 0) {
             buttonPressed = false;  // Reset the button press state
         }
 
-        //buttonPressed = false;
+        moveProjectiles();
+
+        buttonPressed = false;
         Report("%s", button);
 
         button = " ";
