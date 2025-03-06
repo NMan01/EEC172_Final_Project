@@ -80,6 +80,13 @@ void PinMuxConfig(void)
     PRCMPeripheralClkEnable(PRCM_GPIOA3, PRCM_RUN_MODE_CLK);
     PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
     PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
+    PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
+
+    //
+    // Configure PIN_53 for GPIO Input -> IR sensor
+    //
+    PinTypeGPIO(PIN_53, PIN_MODE_0, false);
+    GPIODirModeSet(GPIOA3_BASE, 0x40, GPIO_DIR_MODE_IN);
 
     //
     // Configure PIN_15 for GPIO Output -> OC
