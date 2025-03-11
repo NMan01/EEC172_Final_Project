@@ -34,7 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1351.h"
 #include "glcdfont.h"
-//#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+#define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 
 int cursor_x=0;
 int cursor_y=0;
@@ -396,25 +396,36 @@ void drawBitmap(int x, int y,
     }
   }
 }
+*/
 
 //Draw XBitMap Files (*.xbm), exported from GIMP,
 //Usage: Export from GIMP to *.xbm, rename *.xbm to *.c and open in editor.
 //C Array can be directly used with this function
-void drawXBitmap(int x, int y,
-                              const unsigned char *bitmap, int w, int h,
-                              unsigned int color) {
+ void drawXBitmap(int x, int y,
+                               const unsigned char *bitmap, int w, int h,
+                               unsigned int color) {
   
-  int i, j, byteWidth = (w + 7) / 8;
+   int i, j, byteWidth = (w + 7) / 8;
   
-  for(j=0; j<h; j++) {
-    for(i=0; i<w; i++ ) {
-      if(pgm_read_byte(bitmap + j * byteWidth + i / 8) & (1 << (i % 8))) {
-        drawPixel(x+i, y+j, color);
-      }
+   for(j=0; j<h; j++) {
+     for(i=0; i<w; i++ ) {
+        if(pgm_read_byte(bitmap + j * byteWidth + i / 8) & (1 << (i % 8))) {
+            drawPixel(x+i, y+j, color);
+        }
+     }
+   }
+ }
+
+void custom_drawBitMap(int w, int h, const unsigned int* colors) {
+  int i, j;
+  for (i = 0; i < w; i++) {
+    for (j = 0; j < h; j++) {
+      drawPixel(i, j, colors[i + j * w]);
     }
   }
 }
 
+/*
 #if ARDUINO >= 100
 size_t write(unsigned char c) {
 #else

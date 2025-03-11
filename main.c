@@ -52,7 +52,7 @@
 #include "oled/Adafruit_GFX.h"
 #include "oled/glcdfont.h"
 
-
+#include "tank_art.h"
 
 #define APPLICATION_VERSION     "1.4.0"
 //*****************************************************************************
@@ -448,6 +448,30 @@ void moveProjectiles() {
 }
 
 
+void titlePage() {
+    // print title
+    setTextColor(RED, BLACK);
+    setCursor(30,0);
+    Outstr("TANK GAME");
+
+    // draw title art
+    drawXBitmap(0, -5, tank_art_bits, 128, 128, WHITE);
+
+    // print button prompt
+    setTextColor(WHITE, BLACK);
+    setCursor(0, 121);
+    Outstr("Press any button");
+
+    // wait for button press
+    while (1) {
+        if (dataReady) {
+            break;
+        }
+    }
+
+    // clear screen
+    fillScreen(BLACK);
+}
 
 
 //*****************************************************************************
@@ -529,6 +553,9 @@ void main()
 
     Adafruit_Init();
     fillScreen(BLACK);
+
+    // display title page
+    titlePage();
 
     unsigned char accelerometer_addr = 0x18;
     unsigned char x_reg = 0x03;
