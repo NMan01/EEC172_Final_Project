@@ -3,15 +3,6 @@
 // Application Name - Final Project
 // Authors - Nadav Weinberger and Khaiber Amin
 //
-//
-//*****************************************************************************
-
-
-//*****************************************************************************
-//
-//! \addtogroup SPI_Demo
-//! @{
-//
 //*****************************************************************************
 
 // Standard includes
@@ -22,6 +13,8 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdbool.h>
+#include <time.h>
+
 
 // Driverlib includes
 #include "hw_types.h"
@@ -52,7 +45,7 @@
 #include "oled/Adafruit_GFX.h"
 #include "oled/glcdfont.h"
 
-
+#include "tank_art.h"
 
 #define APPLICATION_VERSION     "1.4.0"
 //*****************************************************************************
@@ -78,6 +71,7 @@
 #define FIRE_COOLDOWN 25
 #define PLAYER_BULLET_SPEED 10
 
+#define MAX_ENEMIES 1
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
@@ -129,13 +123,29 @@ volatile unsigned long data = 0;
 typedef struct {
     int x, y;
     int direction;  // This will be in the range of [0, 360) to represent direction in degrees
+    bool isFriendlyProjectile;
 } Projectile;
+
+
+
+typedef struct {
+  int xPos, yPos;
+  int cannonDirection;
+  int cooldown;
+  int lastTimeFired;
+  bool canFire;
+  bool isAlive;
+  //implement movement
+} Enemy;
 
 #define MAX_PROJECTILES 5  // Maximum number of projectiles in flight at once
 
+
+
+Enemy enemies[MAX_ENEMIES];
 Projectile projectiles[MAX_PROJECTILES];
 int num_projectiles = 0;
-
+int num_enemies = 0;
 
 
 
@@ -203,19 +213,9 @@ static void SysTickInit(void) {
     MAP_SysTickEnable();
 }
 
-
 static inline void SysTickReset(void) {
-    // any write to the ST_CURRENT register clears it
-    // after clearing it automatically gets reset without
-    // triggering exception logic
-    // see reference manual section 3.2.1
     HWREG(NVIC_ST_CURRENT) = 1;
-
-    // clear the global count variable
-//    systick_cnt = 0;
 }
-
-
 
 void Uart1IntHandler() {
     char buffer[16];
@@ -227,11 +227,7 @@ void Uart1IntHandler() {
         c = MAP_UARTCharGet(UARTA1_BASE);
     }
     buffer[idx] = '\0';
-
-    //Outstr("type");
-
     Outstr(buffer);
-
 }
 
 static void GPIOIntHandler(void) {
@@ -268,17 +264,13 @@ static void GPIOIntHandler(void) {
             {
                 signalStarted = false;
             }
-
-
         }
-
         else
         {
             // narrow -> 0
             if (delta_us > 1100 && delta_us < 1200)
             {
                 // add 0 to data
-//                Report("0");
             }
 
             // wide -> 1
@@ -302,46 +294,12 @@ static void GPIOIntHandler(void) {
                 bitCounter = 0;
             }
         }
-
-
     }
     else // first falling edge of leader
         signalStarted = true;
 
-
     // reset the countdown register
     SysTickReset();
-}
-
-//FUNCTIONS FOR ROTATION BEGIN -----------------
-
-//function to rotate a single point around a center by an angle
-void rotate_point(int *x, int *y, int angle, int center_x, int center_y) {
-    // Convert angle to radians
-    double radian = angle * (M_PI / 180.0);
-
-    // Calculate cosine and sine of the angle
-    double cos_angle = cos(radian);
-    double sin_angle = sin(radian);
-
-    // Translate point to the origin
-    int temp_x = *x - center_x;
-    int temp_y = *y - center_y;
-
-    // Apply rotation matrix
-    int rotated_x = (int)(temp_x * cos_angle - temp_y * sin_angle + center_x);
-    int rotated_y = (int)(temp_x * sin_angle + temp_y * cos_angle + center_y);
-
-    // Update original point with rotated coordinates
-    *x = rotated_x;
-    *y = rotated_y;
-}
-
-void rotate_triangle(int *x1, int *y1, int *x2, int *y2, int *x3, int *y3, int angle, int centroid_x, int centroid_y) {
-    // Rotate each vertex of the triangle
-    rotate_point(x1, y1, angle, centroid_x, centroid_y);
-    rotate_point(x2, y2, angle, centroid_x, centroid_y);
-    rotate_point(x3, y3, angle, centroid_x, centroid_y);
 }
 
 //FUNCTIONS FOR CANNON POSITION -----------------
@@ -415,8 +373,27 @@ void fireProjectile(int ball_x, int ball_y, int cannonDir) {
         projectiles[num_projectiles].x = ball_x;  // Start at the cannon's position
         projectiles[num_projectiles].y = ball_y;
         projectiles[num_projectiles].direction = cannonDir;
+        projectiles[num_projectiles].isFriendlyProjectile = true;
 
         num_projectiles++;  // Increment the number of active projectiles
+    }
+}
+
+void fireEnemyProjectile(Enemy *enemy) {
+    //Report("enemy.lastTimeFired: %d", enemy->lastTimeFired);
+    //Report("enemy.cooldown: %d", enemy->cooldown);
+
+
+    if (num_projectiles < MAX_PROJECTILES && enemy->lastTimeFired > enemy->cooldown) {
+        //Report("Enemy Firing");
+        projectiles[num_projectiles].x = enemy->xPos;  // Start at the cannon's position
+        projectiles[num_projectiles].y = enemy->yPos;
+        projectiles[num_projectiles].direction = enemy->cannonDirection;
+        projectiles[num_projectiles].isFriendlyProjectile = false;
+        enemy->lastTimeFired = 0;
+
+
+        num_projectiles++;
     }
 }
 
@@ -441,27 +418,149 @@ void moveProjectiles() {
             num_projectiles--;
             i--;  // Decrement the index to stay at the same position after removal
         } else {
+            uint16_t color;
             // Draw the projectile at its new position
-            drawCircle(projectiles[i].x, projectiles[i].y, 3, WHITE);  // You can change the size/color
+            if (projectiles[i].isFriendlyProjectile) {
+                color = WHITE;
+            } else {color = YELLOW;}
+            drawCircle(projectiles[i].x, projectiles[i].y, 3, color);  // You can change the size/color
         }
     }
 }
 
+//TITLE PAGE FUNCTIONS
+
+void titlePage() {
+    // print title
+    setTextColor(RED, BLACK);
+    setCursor(30,0);
+    Outstr("TANK GAME");
+
+    // draw title art
+    drawXBitmap(0, -5, tank_art_bits, 128, 128, WHITE);
+
+    // print button prompt
+    setTextColor(WHITE, BLACK);
+    setCursor(0, 121);
+    Outstr("Press any button");
+
+    // wait for button press
+    while (1) {
+        if (dataReady) {
+            break;
+        }
+    }
+    // clear screen
+    fillScreen(BLACK);
+}
+
+//ENEMY TANK FUNCTIONS
+
+void spawnEnemy(Enemy* enemy) {
 
 
+    enemy->xPos = (rand() % (width()-12)) + 8;
+    enemy->yPos = (rand() % (height()-20)) + 16;
+    //Report("initial enemyXPos: %d ", enemy->xPos);
+    //Report("initial enemyYPos: %d ", enemy->yPos);
+    enemy->cannonDirection = DOWN;
+    enemy->cooldown = 25;
+    enemy ->isAlive = true;
+    drawCircle(enemy->xPos, enemy->yPos, 6, RED);
+    drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection);
+    num_enemies++;
 
-//*****************************************************************************
-//
-//! Main function for spi demo application
-//!
-//! \param none
-//!
-//! \return None.
-//
-//*****************************************************************************
+}
+
+void updateEnemy(Enemy* enemy, int playerXPos, int playerYPos) {
+    // Calculate the angle between the enemy and the player
+
+    if (enemy->lastTimeFired <= enemy->cooldown) {
+        enemy->lastTimeFired++;
+    }
+    int angle = atan2(playerYPos - enemy->yPos, playerXPos - enemy->xPos) * (180 / M_PI);
+
+    // Normalize the angle to be in the range of [0, 360)
+    if (angle < 0) {
+        angle += 360;
+    }
+
+    // Determine the nearest direction (in 45-degree increments)
+    if (angle >= 337.5 || angle < 22.5) {
+        enemy->cannonDirection = RIGHT;
+    } else if (angle >= 22.5 && angle < 67.5) {
+        enemy->cannonDirection = DOWN_RIGHT;
+    } else if (angle >= 67.5 && angle < 112.5) {
+        enemy->cannonDirection = DOWN;
+    } else if (angle >= 112.5 && angle < 157.5) {
+        enemy->cannonDirection = DOWN_LEFT;
+    } else if (angle >= 157.5 && angle < 202.5) {
+        enemy->cannonDirection = LEFT;
+    } else if (angle >= 202.5 && angle < 247.5) {
+        enemy->cannonDirection = UP_LEFT;
+    } else if (angle >= 247.5 && angle < 292.5) {
+        enemy->cannonDirection = UP;
+    } else if (angle >= 292.5 && angle < 337.5) {
+        enemy->cannonDirection = UP_RIGHT;
+    }
+
+    // Update the cannon direction based on the calculated angle
+    drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection); // Redraw the enemy's cannon facing the player
+}
+
+
+void checkIfPlayerHit(int playerXPos, int playerYPos, Projectile projectiles[]) {
+    int i;
+    for (i = 0; i < num_projectiles; i++) {
+        if (projectiles[i].isFriendlyProjectile == false) {
+            if (abs(projectiles[i].x - playerXPos) < 8 && abs(projectiles[i].y - playerYPos) < 8) {
+                Report("HIT ");
+
+                int j;
+                for (j = i; j < num_projectiles - 1; j++) {
+                    projectiles[j] = projectiles[j + 1];
+                }
+                num_projectiles--;
+                i--;  // Decrement the index to stay at the same position after removal
+
+            }
+        }
+    }
+}
+
+void checkIfEnemyHit(Enemy enemy, Projectile projectiles[]) {
+    int i;
+    for (i = 0; i < num_projectiles; i++) {
+        if (projectiles[i].isFriendlyProjectile == true) {
+            if (abs(projectiles[i].x - enemy.xPos) < 8 && abs(projectiles[i].y - enemy.yPos) < 8) {
+                Report("KILL ");
+
+                enemy.isAlive = false;
+
+                drawCircle(enemy.xPos, enemy.yPos, 6, BLACK);
+                eraseCannon(enemy.xPos, enemy.yPos, enemy.cannonDirection);
+
+                int k;
+                for (k = i; k < num_enemies -1; k++) {
+                    enemies[k] = enemies[k+1];
+                }
+                num_enemies--;
+
+                int j;
+                for (j = i; j < num_projectiles - 1; j++) {
+                    projectiles[j] = projectiles[j + 1];
+                }
+                num_projectiles--;
+                i--;  // Decrement the index to stay at the same position after removal
+            }
+        }
+    }
+}
+
 void main()
 {
 
+    srand(time(NULL));
     // Initialize Board configurations
     BoardInit();
 
@@ -530,6 +629,8 @@ void main()
     Adafruit_Init();
     fillScreen(BLACK);
 
+    titlePage();
+
     unsigned char accelerometer_addr = 0x18;
     unsigned char x_reg = 0x03;
     unsigned char y_reg = 0x05;
@@ -541,56 +642,26 @@ void main()
     sprintf(scoreStr, "Score: %d", score);
     Outstr(scoreStr);
 
-
-
-//    // put tank in center initially
-    int x1 = width()/2 - 5, y1 = height()/2 + 12;
-    int x2 = width()/2 + 5, y2 = height()/2 + 12;
-    int x3 = width()/2, y3 = height()/2; // front of tank
-
     int ball_x = 64;
     int ball_y = 64;
 
-    int centroid_x = (x1 + x2 + x3) / 3;
-    int centroid_y = (y1 + y2 + y3) / 3;
 
-    //drawTriangle(x1, y1, x2, y2, x3, y3, GREEN);
-
-
-    int target_x, target_y;
-
-    // put target in random coordinates
-    target_x = (rand() % (width()-12)) + 8;
-    target_y = (rand() % (height()-20)) + 16;
-    fillCircle(target_x, target_y, 4, RED);
-
-    int cannonDir = 45;
+    int cannonDir = 90;
 
     //IR STUFF
     unsigned long localData;
-    //char lastButtonPressed[10];
-
-    //int charX = 0;
-    //int charY = height()/2;
-
-    //char transmissionStr[16];
-    //int strIdx = 0;
-
-    //int pressCounter; // used for cycling thru chars
-
-    //bool numericModeActive = false;
 
     SysTickReset();
 
     char* button;
     static bool buttonPressed = false;
 
+    Enemy enemy;
+    spawnEnemy(&enemy);
+
+
     while (1) {
-        Report("%d ", systick_cnt);
-
-        //IR STUFF
-        //int modAmount = 3;
-
+        //Report("%d ", systick_cnt);
                 if (dataReady)
                 {
                     localData = data;
@@ -616,35 +687,16 @@ void main()
                     default:
                         button = "?";
                     }
-
                     //systick_cnt = 0;
                 }
 
-
         // get x and y acceleration
         I2C_IF_Write(accelerometer_addr,&x_reg,1,0);
-        I2C_IF_Read(accelerometer_addr, &acc_x, 1);
+        I2C_IF_Read(accelerometer_addr, &acc_y, 1);
 
 
         I2C_IF_Write(accelerometer_addr,&y_reg,1,0);
-        I2C_IF_Read(accelerometer_addr, &acc_y, 1);
-
-//        Report("Y: %d\n", acc_y);
-//
-//        int angle = (acc_y * 90) / 128;
-//
-//        drawTriangle(x1, y1, x2, y2, x3, y3, BLACK);
-//
-//
-//        rotate_triangle(&x1, &y1, &x2, &y2, &x3, &y3, angle, centroid_x, centroid_y); //changes vertice coords too much (millions?)
-//
-//
-//        drawTriangle(x1, y1, x2, y2, x3, y3, GREEN); //stops here
-
-
-
-
-        //Report(" X: %d, Y: %d\n", acc_x, acc_y);
+        I2C_IF_Read(accelerometer_addr, &acc_x, 1);
 
         //erase previous ball
         drawCircle(ball_x, ball_y, 6, BLACK);
@@ -664,7 +716,7 @@ void main()
         else if (strcmp(button, "FireButton") == 0 && !buttonPressed && systick_cnt > FIRE_COOLDOWN) {
 
             fireProjectile(ball_x, ball_y, cannonDir);
-            Report("FIRE");
+            //Report("FIRE");
             buttonPressed = true;
             systick_cnt = 0;
         }
@@ -676,16 +728,9 @@ void main()
         moveProjectiles();
 
         buttonPressed = false;
-        Report("%s", button);
+        //Report("%s", button);
 
         button = " ";
-
-
-//        cannonDir += 45;
-//        if (cannonDir > 315) {
-//            cannonDir = 0;
-//        }
-
         //limit tank speed
         if (acc_x > 3) {
             acc_x = 3;
@@ -702,7 +747,7 @@ void main()
 
          //update ball position
         ball_x += acc_x;
-        ball_y -= acc_y;
+        ball_y += acc_y;
 
         // check for edges
         if (ball_x < 4)
@@ -714,34 +759,30 @@ void main()
         if (ball_y > height()-4)
             ball_y = height()-4;
 
-
         // put ball in new position
         drawCircle(ball_x, ball_y, 6, GREEN);
         drawCannon(ball_x, ball_y, cannonDir);
 
-        // check if target reached
-        if (abs(ball_x-target_x) < 8 && abs(ball_y-target_y) < 8) {
-            score++;
+        //drawCircle(&enemy.xPos, &enemy.yPos, 6, BLACK);
+        eraseCannon(enemy.xPos, enemy.yPos, enemy.cannonDirection);
 
-            // erase target
-            fillCircle(target_x, target_y, 4, BLACK);
-
-            // print new score
-            fillRect(0,0,width(), 8, BLACK);
-            setCursor(0,0);
-            sprintf(scoreStr, "Score: %d", score);
-            Outstr(scoreStr);
-
-
-            // put target in new random coordinates
-            target_x = (rand() % (width()-12)) + 8;
-            target_y = (rand() % (height()-20)) + 16;
-            fillCircle(target_x, target_y, 4, RED);
-
+        if (enemy.isAlive) {
+            updateEnemy(&enemy, ball_x, ball_y);
+            fireEnemyProjectile(&enemy);
         }
 
-    };
 
+        checkIfPlayerHit(ball_x, ball_y, projectiles);
+        checkIfEnemyHit(enemy, projectiles);
+
+//            // print new score
+//            fillRect(0,0,width(), 8, BLACK);
+//            setCursor(0,0);
+//            sprintf(scoreStr, "Score: %d", score);
+//            Outstr(scoreStr);
+        }
 
 }
+
+
 
