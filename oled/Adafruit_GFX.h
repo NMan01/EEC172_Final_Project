@@ -47,6 +47,7 @@
     void drawRoundRect(int x0, int y0, int w, int h, int radius, unsigned int color);
     void fillRoundRect(int x0, int y0, int w, int h, int radius, unsigned int color);
     void drawBitmap(int x, int y, const unsigned char *bitmap, int w, int h, unsigned int color);
+    // void custom_drawBitMap(int w, int h, const unsigned int* colors);
 //    void drawBitmap(int x, int y, const unsigned char *bitmap, int w, int h, unsigned int color, unsigned int bg);
     void drawXBitmap(int x, int y, const unsigned char *bitmap, int w, int h, unsigned int color);
     void drawChar(int x, int y, unsigned char c, unsigned int color, unsigned int bg, unsigned char size);
