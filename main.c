@@ -39,23 +39,17 @@
 #include "i2c_if.h"
 //#include "spi_if.h"
 
-
+// oled includes
 #include "oled/Adafruit_SSD1351.h"
 #include "oled/oled_test.h"
 #include "oled/Adafruit_GFX.h"
 #include "oled/glcdfont.h"
 
+// title art
 #include "tank_art.h"
 
-#define APPLICATION_VERSION     "1.4.0"
-//*****************************************************************************
-//
-// Application Master/Slave mode selector macro
-//
-// MASTER_MODE = 1 : Application in master mode
-// MASTER_MODE = 0 : Application in slave mode
-//
-//*****************************************************************************
+#include "parson.h"
+
 
 #define SPI_IF_BIT_RATE  100000
 #define TR_BUFF_SIZE     100
@@ -673,6 +667,51 @@ void gameOverScreen() {
     fillScreen(BLACK);
 }
 
+/**
+* create a json-formatted string using the parson library
+* given the score and name
+*/
+void create_post_json(int score, char* name)
+{
+    // Create root JSON object
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+    // create 'state' object
+    JSON_Value *state_value = json_value_init_object();
+    JSON_Object *state_object = json_value_get_object(state_value);
+
+    // crate 'desired' object
+    JSON_Value *desired_value = json_value_init_object();
+    JSON_Object *desired_object = json_value_get_object(desired_value);
+
+    // set attributes in 'desired'
+    json_object_set_number(desired_object, "high-score", score);
+    json_object_set_string(desired_object, "name", name);
+
+    json_object_set_value(state_object, "desired", desired_value);
+    json_object_set_value(root_object, "state", state_value);
+
+    // Print the JSON object as a string
+    char *json_string = json_serialize_to_string_pretty(root_value);
+    Report("%s\n", json_string);
+
+    // Clean up memory
+    json_free_serialized_string(json_string);
+    json_value_free(root_value);
+
+    while (1) {}
+}
+
+//*****************************************************************************
+//
+//! Main function for spi demo application
+//!
+//! \param none
+//!
+//! \return None.
+//
+//*****************************************************************************
 void main()
 {
 
@@ -740,6 +779,8 @@ void main()
 
     // Clear UART Terminal
     ClearTerm();
+
+    create_post_json(15, "nadav");
 
     Adafruit_Init();
     fillScreen(BLACK);
