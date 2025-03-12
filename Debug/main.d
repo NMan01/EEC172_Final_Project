@@ -12,10 +12,21 @@ main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stda
 main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_types.h
 main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_types.h
 main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdlib.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdint.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_stdint40.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/stdint.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_stdint.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_stdint.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/math.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_defs.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_limits.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_types.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_memmap.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_common_reg.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_ints.h
+main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_apps_rcm.h
+main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_nvic.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/spi.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/gpio.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/rom.h
@@ -25,6 +36,7 @@ main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/utils.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/prcm.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/uart.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/interrupt.h
+main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/systick.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/example/common/uart_if.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/example/common/gpio_if.h
 main.obj: /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/example/common/i2c_if.h
@@ -32,6 +44,9 @@ main.obj: ../oled/Adafruit_SSD1351.h
 main.obj: ../oled/oled_test.h
 main.obj: ../oled/Adafruit_GFX.h
 main.obj: ../oled/glcdfont.h
+main.obj: ../tank_art.h
+main.obj: ../parson.h
+main.obj: /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stddef.h
 
 ../main.c:
 
@@ -57,6 +72,24 @@ main.obj: ../oled/glcdfont.h
 
 /Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdlib.h:
 
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdint.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_stdint40.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/stdint.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_stdint.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/sys/_stdint.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/math.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/_defs.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/machine/_limits.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stdbool.h:
+
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_types.h:
 
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_memmap.h:
@@ -64,6 +97,10 @@ main.obj: ../oled/glcdfont.h
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_common_reg.h:
 
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_ints.h:
+
+/Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_apps_rcm.h:
+
+/Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/inc/hw_nvic.h:
 
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/spi.h:
 
@@ -83,6 +120,8 @@ main.obj: ../oled/glcdfont.h
 
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/interrupt.h:
 
+/Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/systick.h:
+
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/example/common/uart_if.h:
 
 /Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/example/common/gpio_if.h:
@@ -96,4 +135,10 @@ main.obj: ../oled/glcdfont.h
 ../oled/Adafruit_GFX.h:
 
 ../oled/glcdfont.h:
+
+../tank_art.h:
+
+../parson.h:
+
+/Applications/TI/ccs/tools/compiler/ti-cgt-arm_20.2.7.LTS/include/stddef.h:
 

@@ -129,7 +129,7 @@ void drawCircleHelper( int x0, int y0,
 }
 
 void fillCircle(int x0, int y0, int r,
-			      unsigned int color) {
+                  unsigned int color) {
   drawFastVLine(x0, y0-r, 2*r+1, color);
   fillCircleHelper(x0, y0, r, 3, 0, color);
 }
@@ -169,10 +169,10 @@ void fillCircleHelper(int x0, int y0, int r,
 void drawLine(int x0, int y0, int x1, int y1, unsigned int color) {
   int steep;
   int dx, dy;
-	int err;
-	int ystep;
-						
-	steep = abs(y1 - y0) > abs(x1 - x0);
+    int err;
+    int ystep;
+
+    steep = abs(y1 - y0) > abs(x1 - x0);
   if (steep) {
     swap(x0, y0);
     swap(x1, y1);
@@ -210,8 +210,8 @@ void drawLine(int x0, int y0, int x1, int y1, unsigned int color) {
 
 // Draw a rectangle
 void drawRect(int x, int y,
-			    int w, int h,
-			    unsigned int color) {
+                int w, int h,
+                unsigned int color) {
   drawFastHLine(x, y, w, color);
   drawFastHLine(x, y+h-1, w, color);
   drawFastVLine(x, y, h, color);
@@ -219,22 +219,22 @@ void drawRect(int x, int y,
 }
 /*
 void drawFastVLine(int x, int y,
-				 int h, unsigned int color) {		 
-					 
+                 int h, unsigned int color) {
+
   // Update in subclasses if desired!
   drawLine(x, y, x, y+h-1, color);
 }
 
 void drawFastHLine(int x, int y,
-				 int w, unsigned int color) {
+                 int w, unsigned int color) {
   // Update in subclasses if desired!
   drawLine(x, y, x+w-1, y, color);
 }
 
 void fillRect(int x, int y, int w, int h,
-			    unsigned int color) {
+                unsigned int color) {
   int i;
-						
+
   // Update in subclasses if desired!
   for (i=x; i<x+w; i++) {
     drawFastVLine(i, y, h, color);
@@ -262,7 +262,7 @@ void drawRoundRect(int x, int y, int w,
 
 // Fill a rounded rectangle
 void fillRoundRect(int x, int y, int w,
-				 int h, int r, unsigned int color) {
+                 int h, int r, unsigned int color) {
   // smarter version
   fillRect(x+r, y, w-2*r, h, color);
 
@@ -273,8 +273,8 @@ void fillRoundRect(int x, int y, int w,
 
 // Draw a triangle
 void drawTriangle(int x0, int y0,
-				int x1, int y1,
-				int x2, int y2, unsigned int color) {
+                int x1, int y1,
+                int x2, int y2, unsigned int color) {
   drawLine(x0, y0, x1, y1, color);
   drawLine(x1, y1, x2, y2, color);
   drawLine(x2, y2, x0, y0, color);
@@ -282,8 +282,8 @@ void drawTriangle(int x0, int y0,
 
 // Fill a triangle
 void fillTriangle ( int x0, int y0,
-				  int x1, int y1,
-				  int x2, int y2, unsigned int color) {
+                  int x1, int y1,
+                  int x2, int y2, unsigned int color) {
 
   int a, b, y, last;
   int
@@ -295,7 +295,7 @@ void fillTriangle ( int x0, int y0,
     dy12 = y2 - y1;
   int
     sa   = 0,
-    sb   = 0;						
+    sb   = 0;
 
   // Sort coordinates by Y order (y2 >= y1 >= y0)
   if (y0 > y1) {
@@ -361,8 +361,8 @@ void fillTriangle ( int x0, int y0,
 }
 /*
 void drawBitmap(int x, int y,
-			      const unsigned char *bitmap, int w, int h,
-			      unsigned int color) {
+                  const unsigned char *bitmap, int w, int h,
+                  unsigned int color) {
 
   int i, j, byteWidth = (w + 7) / 8;
 
@@ -391,7 +391,7 @@ void drawBitmap(int x, int y,
         drawPixel(x+i, y+j, color);
       }
       else {
-      	drawPixel(x+i, y+j, bg);
+        drawPixel(x+i, y+j, bg);
       }
     }
   }
@@ -451,12 +451,12 @@ void write(unsigned char c) {
 */
 // Draw a character
 void drawChar(int x, int y, unsigned char c,
-			    unsigned int color, unsigned int bg, unsigned char size) {
+                unsigned int color, unsigned int bg, unsigned char size) {
 
-  unsigned char line;	
-  char i;						
-  char j;						
-						
+  unsigned char line;
+  char i;
+  char j;
+
   if((x >= WIDTH)            || // Clip right
      (y >= HEIGHT)           || // Clip bottom
      ((x + 6 * size - 1) < 0) || // Clip left
@@ -488,13 +488,13 @@ void drawChar(int x, int y, unsigned char c,
 }
 
 void Outstr (char * str) {
-	char * ptr;
-	
-	ptr = str;
-	while (*ptr) {
-		drawChar(cursor_x, cursor_y, *ptr++, textcolor, textbgcolor, textsize);
-		cursor_x += 6*textsize;
-	}
+    char * ptr;
+
+    ptr = str;
+    while (*ptr) {
+        drawChar(cursor_x, cursor_y, *ptr++, textcolor, textbgcolor, textsize);
+        cursor_x += 6*textsize;
+    }
 }
 
 void setCursor(int x, int y) {
@@ -548,12 +548,11 @@ void setRotation(unsigned char x) {
 // Return the size of the display (per current rotation)
 int width(void) {
 //  return _width;
-	return WIDTH;
+    return WIDTH;
 }
  
 int height(void) {
 //  return _height;
-	return HEIGHT;
+    return HEIGHT;
 }
-
 

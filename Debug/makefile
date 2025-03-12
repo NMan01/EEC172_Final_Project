@@ -10,12 +10,15 @@ GEN_CMDS__FLAG :=
 ORDERED_OBJS += \
 "./i2c_if.obj" \
 "./main.obj" \
+"./network.obj" \
+"./parson.obj" \
 "./pin_mux_config.obj" \
 "./startup_ccs.obj" \
 "./uart_if.obj" \
 "./oled/Adafruit_GFX.obj" \
 "./oled/Adafruit_OLED.obj" \
 "./oled/oled_test.obj" \
+"./utils/network_utils.obj" \
 "../cc3200v1p32.cmd" \
 $(GEN_CMDS__FLAG) \
 -l"/Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk/driverlib/ccs/Release/driverlib.a" \
@@ -30,8 +33,10 @@ RMDIR := rm -rf
 -include sources.mk
 -include subdir_vars.mk
 -include oled/subdir_vars.mk
+-include utils/subdir_vars.mk
 -include subdir_rules.mk
 -include oled/subdir_rules.mk
+-include utils/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -150,8 +155,8 @@ Final_Project.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)
-	-$(RM) "i2c_if.obj" "main.obj" "pin_mux_config.obj" "startup_ccs.obj" "uart_if.obj" "oled/Adafruit_GFX.obj" "oled/Adafruit_OLED.obj" "oled/oled_test.obj" 
-	-$(RM) "i2c_if.d" "main.d" "pin_mux_config.d" "startup_ccs.d" "uart_if.d" "oled/Adafruit_GFX.d" "oled/Adafruit_OLED.d" "oled/oled_test.d" 
+	-$(RM) "i2c_if.obj" "main.obj" "network.obj" "parson.obj" "pin_mux_config.obj" "startup_ccs.obj" "uart_if.obj" "oled/Adafruit_GFX.obj" "oled/Adafruit_OLED.obj" "oled/oled_test.obj" "utils/network_utils.obj" 
+	-$(RM) "i2c_if.d" "main.d" "network.d" "parson.d" "pin_mux_config.d" "startup_ccs.d" "uart_if.d" "oled/Adafruit_GFX.d" "oled/Adafruit_OLED.d" "oled/oled_test.d" "utils/network_utils.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
