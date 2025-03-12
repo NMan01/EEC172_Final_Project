@@ -126,8 +126,6 @@ typedef struct {
     bool isFriendlyProjectile;
 } Projectile;
 
-
-
 typedef struct {
   int xPos, yPos;
   int cannonDirection;
@@ -138,6 +136,12 @@ typedef struct {
   //implement movement
 } Enemy;
 
+typedef struct {
+   int x;
+   int y;
+
+} Point ;
+
 #define MAX_PROJECTILES 5  // Maximum number of projectiles in flight at once
 
 
@@ -146,6 +150,7 @@ Enemy enemies[MAX_ENEMIES];
 Projectile projectiles[MAX_PROJECTILES];
 int num_projectiles = 0;
 int num_enemies = 0;
+bool enemyDefeated = true;
 
 
 
@@ -304,31 +309,31 @@ static void GPIOIntHandler(void) {
 
 //FUNCTIONS FOR CANNON POSITION -----------------
 
-void drawCannon(int ball_x, int ball_y, int direction){
+void drawCannon(int ball_x, int ball_y, int direction, uint16_t color){
     switch(direction) {
         case UP:
-            drawLine(ball_x, ball_y, ball_x, ball_y - 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x, ball_y - 12, color);
             break;
         case RIGHT:
-            drawLine(ball_x, ball_y, ball_x + 12, ball_y, GREEN);
+            drawLine(ball_x, ball_y, ball_x + 12, ball_y, color);
             break;
         case DOWN:
-            drawLine(ball_x, ball_y, ball_x, ball_y + 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x, ball_y + 12, color);
             break;
         case LEFT:
-            drawLine(ball_x, ball_y, ball_x - 12, ball_y, GREEN);
+            drawLine(ball_x, ball_y, ball_x - 12, ball_y, color);
             break;
         case UP_LEFT:
-            drawLine(ball_x, ball_y, ball_x - 12, ball_y - 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x - 12, ball_y - 12, color);
             break;
         case UP_RIGHT:
-            drawLine(ball_x, ball_y, ball_x + 12, ball_y - 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x + 12, ball_y - 12, color);
             break;
         case DOWN_LEFT:
-            drawLine(ball_x, ball_y, ball_x - 12, ball_y + 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x - 12, ball_y + 12, color);
             break;
         case DOWN_RIGHT:
-            drawLine(ball_x, ball_y, ball_x + 12, ball_y + 12, GREEN);
+            drawLine(ball_x, ball_y, ball_x + 12, ball_y + 12, color);
             break;
 
 
@@ -450,7 +455,9 @@ void titlePage() {
             break;
         }
     }
+    dataReady = false;
     // clear screen
+    setCursor(0,0);
     fillScreen(BLACK);
 }
 
@@ -461,14 +468,47 @@ void spawnEnemy(Enemy* enemy) {
 
     enemy->xPos = (rand() % (width()-12)) + 8;
     enemy->yPos = (rand() % (height()-20)) + 16;
-    //Report("initial enemyXPos: %d ", enemy->xPos);
-    //Report("initial enemyYPos: %d ", enemy->yPos);
     enemy->cannonDirection = DOWN;
     enemy->cooldown = 25;
     enemy ->isAlive = true;
+    enemy->lastTimeFired = 0;
     drawCircle(enemy->xPos, enemy->yPos, 6, RED);
-    drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection);
+    drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection, RED);
     num_enemies++;
+
+}
+
+
+Point getRandCoords() {
+    Point pt;
+    pt.x = rand() % 128;
+    pt.y = rand() % 128;
+    return pt;
+}
+
+void newTargetPoint() {
+
+}
+
+void updateEnemyPosition(Enemy* enemy, Point targetPoint) {
+    //Report("EnemyXPos: %d ", enemy->xPos);
+    //Report("EnemyYPos: %d ", enemy->yPos);
+    if (enemy->xPos > targetPoint.x) {
+        enemy->xPos--;
+    } else if (enemy->xPos < targetPoint.x) {
+        enemy->xPos++;
+    }
+    if (enemy->yPos > targetPoint.y) {
+        enemy->yPos--;
+    } else if (enemy->yPos < targetPoint.y) {
+        enemy->yPos++;
+    }
+//    if (enemy->xPos == targetPoint.x && enemy->yPos == targetPoint.y) {
+//
+//    }
+
+
+
 
 }
 
@@ -485,6 +525,9 @@ void updateEnemy(Enemy* enemy, int playerXPos, int playerYPos) {
         angle += 360;
     }
 
+    int oldCannonDir = enemy->cannonDirection;
+    int newCannonDir;
+    //eraseCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection);
     // Determine the nearest direction (in 45-degree increments)
     if (angle >= 337.5 || angle < 22.5) {
         enemy->cannonDirection = RIGHT;
@@ -504,8 +547,18 @@ void updateEnemy(Enemy* enemy, int playerXPos, int playerYPos) {
         enemy->cannonDirection = UP_RIGHT;
     }
 
-    // Update the cannon direction based on the calculated angle
-    drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection); // Redraw the enemy's cannon facing the player
+    newCannonDir = enemy->cannonDirection;
+    if (newCannonDir != oldCannonDir) {
+        eraseCannon(enemy->xPos, enemy->yPos, oldCannonDir);
+        drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection, RED); // Redraw the enemy's cannon facing the player
+    }
+
+    //erase previous enemy location
+    //drawCircle(enemy->xPos, enemy->yPos, 6, BLACK);
+    //eraseCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection);
+    //updateEnemyPosition(enemy, getRandCoords());
+    //drawCircle(enemy->xPos, enemy->yPos, 6, RED);
+    //drawCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection); // Redraw the enemy's cannon facing the player
 }
 
 
@@ -522,46 +575,108 @@ void checkIfPlayerHit(int playerXPos, int playerYPos, Projectile projectiles[]) 
                 }
                 num_projectiles--;
                 i--;  // Decrement the index to stay at the same position after removal
+                gameOverScreen();
 
             }
         }
     }
 }
 
-void checkIfEnemyHit(Enemy enemy, Projectile projectiles[]) {
+int checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
     int i;
     for (i = 0; i < num_projectiles; i++) {
         if (projectiles[i].isFriendlyProjectile == true) {
-            if (abs(projectiles[i].x - enemy.xPos) < 8 && abs(projectiles[i].y - enemy.yPos) < 8) {
+            if (abs(projectiles[i].x - enemy->xPos) < 8 && abs(projectiles[i].y - enemy->yPos) < 8) {
                 Report("KILL ");
 
-                enemy.isAlive = false;
+                enemy->isAlive = false;
 
-                drawCircle(enemy.xPos, enemy.yPos, 6, BLACK);
-                eraseCannon(enemy.xPos, enemy.yPos, enemy.cannonDirection);
+                drawCircle(projectiles[i].x, projectiles[i].y, 3, BLACK);
+                drawCircle(enemy->xPos, enemy->yPos, 6, BLACK);
+                eraseCannon(enemy->xPos, enemy->yPos, enemy->cannonDirection);
 
-                int k;
-                for (k = i; k < num_enemies -1; k++) {
-                    enemies[k] = enemies[k+1];
-                }
-                num_enemies--;
-
+                // Clean up the enemy from the enemies array and adjust the number of enemies
                 int j;
+                for (j = 0; j < num_enemies; j++) {
+                    if (&enemies[j] == enemy) {
+                        // Shift all enemies after the dead enemy down by one position
+                        int k;
+                        for (k = j; k < num_enemies - 1; k++) {
+                            enemies[k] = enemies[k + 1];
+                        }
+                        // Decrement the number of enemies
+                        num_enemies--;
+                        break;
+                    }
+                }
+
+                // Remove the projectile that hit the enemy from the projectiles list
+
                 for (j = i; j < num_projectiles - 1; j++) {
                     projectiles[j] = projectiles[j + 1];
                 }
-                num_projectiles--;
-                i--;  // Decrement the index to stay at the same position after removal
+                num_projectiles--;  // Decrement the number of projectiles
+
+                i--;
+
+                enemyDefeated = true;
+                score++;
+                Report("Score: %d ", score);
+                //print new score
+                //fillRect(0,0,width(), 8, BLACK);
+                //char scoreStr[20];
+                //setCursor(0,0);
+                //sprintf(scoreStr, "Score: %d", score);
+                //Outstr(scoreStr);
+                return score;
+
             }
         }
     }
+}
+
+
+//GAME OVER SCREEN FUNCTION
+
+void exitGame() {
+    //leaderbaord pg
+    main();
+}
+
+void gameOverScreen() {
+    // print gameover screen
+    setTextColor(RED, BLACK);
+    setTextSize(3);
+    setCursor(20,30);
+    Outstr("GAME");
+    setCursor(20,60);
+    Outstr("OVER");
+
+    // print button prompt
+    setTextSize(1);
+    setTextColor(WHITE, BLACK);
+    setCursor(0, 111);
+    Outstr("Press any button ");
+    setCursor(0, 121);
+    Outstr(" to CONTINUE");
+
+    // wait for button press
+    while (1) {
+        if (dataReady) {
+            dataReady = false;
+            exitGame();
+
+            break;
+        }
+    }
+    // clear screen
+    fillScreen(BLACK);
 }
 
 void main()
 {
 
     srand(time(NULL));
-    // Initialize Board configurations
     BoardInit();
 
     // Muxing UART and SPI lines.
@@ -656,12 +771,18 @@ void main()
     char* button;
     static bool buttonPressed = false;
 
+    //initial enemy spawned
     Enemy enemy;
     spawnEnemy(&enemy);
-
+    dataReady = true;
 
     while (1) {
         //Report("%d ", systick_cnt);
+        if (enemyDefeated == true) {
+            spawnEnemy(&enemy);
+            enemyDefeated = false;
+        }
+
                 if (dataReady)
                 {
                     localData = data;
@@ -761,25 +882,26 @@ void main()
 
         // put ball in new position
         drawCircle(ball_x, ball_y, 6, GREEN);
-        drawCannon(ball_x, ball_y, cannonDir);
+        drawCannon(ball_x, ball_y, cannonDir, GREEN);
 
         //drawCircle(&enemy.xPos, &enemy.yPos, 6, BLACK);
-        eraseCannon(enemy.xPos, enemy.yPos, enemy.cannonDirection);
+        //eraseCannon(enemy.xPos, enemy.yPos, enemy.cannonDirection);
 
         if (enemy.isAlive) {
+            //Report("Enemy is Alive ");
             updateEnemy(&enemy, ball_x, ball_y);
             fireEnemyProjectile(&enemy);
         }
 
 
         checkIfPlayerHit(ball_x, ball_y, projectiles);
-        checkIfEnemyHit(enemy, projectiles);
+        score = checkIfEnemyHit(&enemy, projectiles, score);
 
 //            // print new score
 //            fillRect(0,0,width(), 8, BLACK);
-//            setCursor(0,0);
-//            sprintf(scoreStr, "Score: %d", score);
-//            Outstr(scoreStr);
+            //setCursor(0,0);
+            //sprintf(scoreStr, "Score: %d", score);
+            //Outstr(scoreStr);
         }
 
 }
