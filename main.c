@@ -6,7 +6,6 @@
 //*****************************************************************************
 
 // Standard includes
-#include <pin_mux_config.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +14,7 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "pin_mux_config.h"
 
 // Driverlib includes
 #include "hw_types.h"
@@ -39,23 +39,28 @@
 #include "i2c_if.h"
 //#include "spi_if.h"
 
-
+// oled includes
 #include "oled/Adafruit_SSD1351.h"
 #include "oled/oled_test.h"
 #include "oled/Adafruit_GFX.h"
 #include "oled/glcdfont.h"
 
+// title art
 #include "tank_art.h"
 
-#define APPLICATION_VERSION     "1.4.0"
-//*****************************************************************************
-//
-// Application Master/Slave mode selector macro
-//
-// MASTER_MODE = 1 : Application in master mode
-// MASTER_MODE = 0 : Application in slave mode
-//
-//*****************************************************************************
+#include "parson.h"
+
+//#include "network.h"
+
+#include "simplelink.h"
+#include "utils/network_utils.h"
+
+//#define SERVER_NAME           "a3jonb2di47yrc-ats.iot.us-east-1.amazonaws.com" // CHANGE ME
+#define SERVER_NAME             "3.220.143.205"
+#define GOOGLE_DST_PORT       8443
+
+
+int score = 0;
 
 #define SPI_IF_BIT_RATE  100000
 #define TR_BUFF_SIZE     100
@@ -72,6 +77,39 @@
 int PLAYER_BULLET_SPEED = 10;
 
 #define MAX_ENEMIES 1
+
+#define DATE                11    /* Current Date */
+#define MONTH               3     /* Month 1-12 */
+#define YEAR                2025  /* Current year */
+#define HOUR                10    /* Time - hours */
+#define MINUTE              39    /* Time - minutes */
+#define SECOND              0     /* Time - seconds */
+
+#define GETHEADER "GET /things/Khaiber_CC3200_Board/shadow HTTP/1.1\r\n"
+#define POSTHEADER "POST /things/Khaiber_CC3200_Board/shadow HTTP/1.1\r\n"             // CHANGE ME
+#define HOSTHEADER "Host: a3jonb2di47yrc-ats.iot.us-east-1.amazonaws.com\r\n"          // CHANGE ME
+#define CHEADER "Connection: Keep-Alive\r\n"
+#define CTHEADER "Content-Type: application/json; charset=utf-8\r\n"
+#define CLHEADER1 "Content-Length: "
+#define CLHEADER2 "\r\n\r\n"
+
+static int set_time() {
+    long retVal;
+
+    g_time.tm_day = DATE;
+    g_time.tm_mon = MONTH;
+    g_time.tm_year = YEAR;
+    g_time.tm_sec = HOUR;
+    g_time.tm_hour = MINUTE;
+    g_time.tm_min = SECOND;
+
+    retVal = sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+                          SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+                          sizeof(SlDateTime),(unsigned char *)(&g_time));
+
+    ASSERT_ON_ERROR(retVal);
+    return SUCCESS;
+}
 
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
@@ -112,6 +150,9 @@ volatile int systick_cnt = 0;
 
 extern void (* const g_pfnVectors[])(void);
 
+bool attemptedConnection = false;
+bool offlineMode = false;
+
 
 volatile bool signalStarted = false;
 volatile bool leaderEncountered = false;
@@ -151,10 +192,10 @@ Projectile projectiles[MAX_PROJECTILES];
 int num_projectiles = 0;
 int num_enemies = 0;
 bool enemyDefeated = true;
-int globalScore = 0;
 int difficulty = 1;
 
-
+void create_post_json(int score, char* name, char* buf);
+int parse_json(char* json_string);
 
 
 //*****************************************************************************
@@ -309,6 +350,120 @@ static void GPIOIntHandler(void) {
     SysTickReset();
 }
 
+static int http_post(int iTLSSockID, char* data) {
+    // remove 1st char of str
+    // str += 1;
+
+    char acSendBuff[512];
+    char acRecvbuff[1460];
+    char cCLLength[200];
+    char* pcBufHeaders;
+    int lRetVal = 0;
+
+    pcBufHeaders = acSendBuff;
+    strcpy(pcBufHeaders, POSTHEADER);
+    pcBufHeaders += strlen(POSTHEADER);
+    strcpy(pcBufHeaders, HOSTHEADER);
+    pcBufHeaders += strlen(HOSTHEADER);
+    strcpy(pcBufHeaders, CHEADER);
+    pcBufHeaders += strlen(CHEADER);
+    strcpy(pcBufHeaders, "\r\n\r\n");
+
+    int dataLength = strlen(data);
+
+    strcpy(pcBufHeaders, CTHEADER);
+    pcBufHeaders += strlen(CTHEADER);
+    strcpy(pcBufHeaders, CLHEADER1);
+
+    pcBufHeaders += strlen(CLHEADER1);
+    sprintf(cCLLength, "%d", dataLength);
+
+    strcpy(pcBufHeaders, cCLLength);
+    pcBufHeaders += strlen(cCLLength);
+    strcpy(pcBufHeaders, CLHEADER2);
+    pcBufHeaders += strlen(CLHEADER2);
+
+    strcpy(pcBufHeaders, data);
+    pcBufHeaders += strlen(data);
+
+    int testDataLength = strlen(pcBufHeaders);
+
+    UART_PRINT("\n***Sending***\n\n");
+    UART_PRINT(acSendBuff);
+
+
+    //
+    // Send the packet to the server */
+    //
+    lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
+    if(lRetVal < 0) {
+        UART_PRINT("POST failed. Error Number: %i\n\r",lRetVal);
+        sl_Close(iTLSSockID);
+        return lRetVal;
+    }
+    lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff), 0);
+    if(lRetVal < 0) {
+        UART_PRINT("Received failed. Error Number: %i\n\r",lRetVal);
+        //sl_Close(iSSLSockID);
+           return lRetVal;
+    }
+    else {
+        acRecvbuff[lRetVal+1] = '\0';
+        UART_PRINT("***Received***\n\n");
+        UART_PRINT(acRecvbuff);
+        UART_PRINT("\n\r\n\r");
+    }
+
+    return 0;
+}
+
+static int http_get(int iTLSSockID, char* buf) {
+    char acSendBuff[512];
+    char acRecvbuff[1460];
+    char cCLLength[200];
+    char* pcBufHeaders;
+    int lRetVal = 0;
+
+    pcBufHeaders = acSendBuff;
+    strcpy(pcBufHeaders, GETHEADER);
+    pcBufHeaders += strlen(GETHEADER);
+    strcpy(pcBufHeaders, HOSTHEADER);
+    pcBufHeaders += strlen(HOSTHEADER);
+    strcpy(pcBufHeaders, CHEADER);
+    pcBufHeaders += strlen(CHEADER);
+    strcpy(pcBufHeaders, "\r\n\r\n");
+
+    int testDataLength = strlen(pcBufHeaders);
+
+    UART_PRINT(acSendBuff);
+
+    //
+    // Send the packet to the server */
+    //
+    lRetVal = sl_Send(iTLSSockID, acSendBuff, strlen(acSendBuff), 0);
+    if(lRetVal < 0) {
+        UART_PRINT("GET failed. Error Number: %i\n\r",lRetVal);
+        sl_Close(iTLSSockID);
+        return lRetVal;
+    }
+    lRetVal = sl_Recv(iTLSSockID, &acRecvbuff[0], sizeof(acRecvbuff), 0);
+    if(lRetVal < 0) {
+        UART_PRINT("Received failed. Error Number: %i\n\r",lRetVal);
+        //sl_Close(iSSLSockID);
+        return lRetVal;
+    }
+    else {
+        acRecvbuff[lRetVal+1] = '\0';
+        UART_PRINT(acRecvbuff + 187);
+        UART_PRINT("\n\r\n\r");
+
+        // copy response into buf
+        strcpy(buf, acRecvbuff + 187);
+    }
+
+    return 0;
+}
+
 //FUNCTIONS FOR CANNON POSITION -----------------
 
 void drawCannon(int ball_x, int ball_y, int direction, uint16_t color){
@@ -458,7 +613,6 @@ void titlePage() {
         }
     }
     dataReady = false;
-    data = 0; //WBTGRFBGNYEHRESBGDNHJYHEGEBHFNYH
     // clear screen
     setCursor(0,0);
     fillScreen(BLACK);
@@ -604,6 +758,14 @@ difficultyScreen() {
 }
 
 leaderboardScreen() {
+
+    // get hi-score
+    char json_response[128];
+    http_get(0, json_response);
+    int hi_score = parse_json(json_response);
+    char score_str[20];
+    sprintf(score_str, "%d", hi_score);
+
     setTextColor(RED, BLACK);
     setTextSize(2);
     setCursor(10,0);
@@ -611,7 +773,7 @@ leaderboardScreen() {
     setTextColor(WHITE, BLACK);
     setCursor(10, 60);
     setTextSize(1);
-    Outstr("[TOP SCORE]");
+    Outstr(score_str);
 
     setTextColor(WHITE, BLACK);
     setCursor(0, 121);
@@ -631,7 +793,7 @@ leaderboardScreen() {
 }
 
 mainMenu() {
-
+    
     setTextColor(RED, BLACK);
     setTextSize(2);
     setCursor(10,0);
@@ -656,7 +818,7 @@ mainMenu() {
     static bool buttonPressed = false;
     bool exitingMainMenu = false;
     int selectedOption = 1;
-    dataReady = true;
+    // dataReady = true;
 
     while(exitingMainMenu == false) {
 
@@ -767,6 +929,7 @@ mainMenu() {
     }
 }
 
+
 //ENEMY TANK FUNCTIONS
 
 void spawnEnemy(Enemy* enemy) {
@@ -782,7 +945,6 @@ void spawnEnemy(Enemy* enemy) {
     enemy->xPos = (rand() % (width()-12)) + 8;
     enemy->yPos = (rand() % (height()-20)) + 16;
     enemy->cannonDirection = DOWN;
-    //enemy->cooldown = 25;
     enemy ->isAlive = true;
     enemy->lastTimeFired = 0;
     drawCircle(enemy->xPos, enemy->yPos, 6, RED);
@@ -792,30 +954,27 @@ void spawnEnemy(Enemy* enemy) {
 }
 
 
-Point getRandCoords() {
-    Point pt;
-    pt.x = rand() % 128;
-    pt.y = rand() % 128;
-    return pt;
-}
+// Point getRandCoords() {
+//     Point pt;
+//     pt.x = rand() % 128;
+//     pt.y = rand() % 128;
+//     return pt;
+// }
 
-void newTargetPoint() {
 
-}
-
-void updateEnemyPosition(Enemy* enemy, Point targetPoint) {
-    //Report("EnemyXPos: %d ", enemy->xPos);
-    //Report("EnemyYPos: %d ", enemy->yPos);
-    if (enemy->xPos > targetPoint.x) {
-        enemy->xPos--;
-    } else if (enemy->xPos < targetPoint.x) {
-        enemy->xPos++;
-    }
-    if (enemy->yPos > targetPoint.y) {
-        enemy->yPos--;
-    } else if (enemy->yPos < targetPoint.y) {
-        enemy->yPos++;
-    }
+// void updateEnemyPosition(Enemy* enemy, Point targetPoint) {
+//     //Report("EnemyXPos: %d ", enemy->xPos);
+//     //Report("EnemyYPos: %d ", enemy->yPos);
+//     if (enemy->xPos > targetPoint.x) {
+//         enemy->xPos--;
+//     } else if (enemy->xPos < targetPoint.x) {
+//         enemy->xPos++;
+//     }
+//     if (enemy->yPos > targetPoint.y) {
+//         enemy->yPos--;
+//     } else if (enemy->yPos < targetPoint.y) {
+//         enemy->yPos++;
+//     }
 //    if (enemy->xPos == targetPoint.x && enemy->yPos == targetPoint.y) {
 //
 //    }
@@ -823,7 +982,7 @@ void updateEnemyPosition(Enemy* enemy, Point targetPoint) {
 
 
 
-}
+// }
 
 void updateEnemy(Enemy* enemy, int playerXPos, int playerYPos) {
     // Calculate the angle between the enemy and the player
@@ -895,7 +1054,7 @@ void checkIfPlayerHit(int playerXPos, int playerYPos, Projectile projectiles[]) 
     }
 }
 
-void checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
+void checkIfEnemyHit(Enemy* enemy, Projectile projectiles[]) {
     int i;
     for (i = 0; i < num_projectiles; i++) {
         if (projectiles[i].isFriendlyProjectile == true) {
@@ -934,17 +1093,14 @@ void checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
 
                 enemyDefeated = true;
                 score++;
-                globalScore++;
                 Report("Score: %d ", score);
-                Report("GlobalScore: %d ", globalScore);
+                displayScore();
                 //print new score
                 //fillRect(0,0,width(), 8, BLACK);
                 //char scoreStr[20];
                 //setCursor(0,0);
                 //sprintf(scoreStr, "Score: %d", score);
                 //Outstr(scoreStr);
-                displayScore();
-                //return score;
 
             }
         }
@@ -955,7 +1111,27 @@ void checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
 //GAME OVER SCREEN FUNCTION
 
 void exitGame() {
+    if (offlineMode) {
+            main();
+        }
+
     //leaderbaord pg
+
+    char json_msg[128];
+
+    char json_response[128];
+    http_get(0, json_response);
+    int hi_score = parse_json(json_response);
+
+    if (hi_score < score) {
+        // send new score to server
+        Report("New high score! Sending to server...\n\r");
+        create_post_json(score, "NADAV", json_msg);
+        http_post(0, json_msg);
+    }
+    
+
+
     main();
 }
 
@@ -989,16 +1165,86 @@ void gameOverScreen() {
     fillScreen(BLACK);
 }
 
+/**
+* create a json-formatted string using the parson library
+* given the score and name
+*/
+void create_post_json(int score, char* name, char* buf)
+{
+    // Create root JSON object
+    JSON_Value *root_value = json_value_init_object();
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+    // create 'state' object
+    JSON_Value *state_value = json_value_init_object();
+    JSON_Object *state_object = json_value_get_object(state_value);
+
+    // crate 'desired' object
+    JSON_Value *desired_value = json_value_init_object();
+    JSON_Object *desired_object = json_value_get_object(desired_value);
+
+    // set attributes in 'desired'
+    json_object_set_number(desired_object, "high-score", score);
+    json_object_set_string(desired_object, "name", name);
+
+    json_object_set_value(state_object, "desired", desired_value);
+    json_object_set_value(root_object, "state", state_value);
+
+    // Print the JSON object as a string
+    char *json_string = json_serialize_to_string_pretty(root_value);
+    Report("%s\n", json_string);
+
+    strcpy(buf, json_string); // Copy the JSON string to the buffer
+
+    // Clean up memory
+    json_free_serialized_string(json_string);
+    json_value_free(root_value);
+}
+
+int parse_json(char* json_string) {
+    // Parse the JSON string
+    JSON_Value *root_value = json_parse_string(json_string);
+    JSON_Object *root_object = json_value_get_object(root_value);
+
+    // Access the "state" object
+    JSON_Object *state_object = json_object_get_object(root_object, "state");
+
+    // Access the "desired" object within "state"
+    JSON_Object *desired_object = json_object_get_object(state_object, "desired");
+
+    // Get the values from the "desired" object
+    int high_score = (int)json_object_get_number(desired_object, "high-score");
+    const char* name = json_object_get_string(desired_object, "name");
+
+    // Print the values
+    Report("High Score: %d\n", high_score);
+    Report("Name: %s\n", name);
+
+    // Clean up memory
+    json_value_free(root_value);
+
+    return high_score; // Return the high score;
+}
+
 void displayScore() {
-            // print new score
+    // print new score
     //int score = 0;
     setCursor(0,0);
     char scoreStr[20];
-    sprintf(scoreStr, "Score: %d", globalScore);
+    sprintf(scoreStr, "Score: %d", score);
     Outstr(scoreStr);
 }
 
 
+//*****************************************************************************
+//
+//! Main function for spi demo application
+//!
+//! \param none
+//!
+//! \return None.
+//
+//*****************************************************************************
 void main()
 {
 
@@ -1067,11 +1313,82 @@ void main()
     // Clear UART Terminal
     ClearTerm();
 
+    char msg[100];
+    create_post_json(15, "nadav", msg);
+    Report("Message:\n %s", msg);
+
+
     Adafruit_Init();
     fillScreen(BLACK);
 
+    if (!attemptedConnection) {
+        attemptedConnection = true;
+
+        // initiate server connection
+        g_app_config.host = SERVER_NAME;
+        g_app_config.port = GOOGLE_DST_PORT;
+
+        long lRetVal = -1;
+
+        //Connect the CC3200 to the local access point
+        lRetVal = connectToAccessPoint();
+
+        //Set time so that encryption can be used
+        lRetVal = set_time();
+        if(lRetVal < 0) {
+            UART_PRINT("Unable to set time in the device");
+        }
+
+        //Connect to the website with TLS encryption
+        lRetVal = tls_connect();
+        if(lRetVal < 0) {
+            ERR_PRINT(lRetVal);
+        }
+
+        // show error if connection failed
+        if (lRetVal < 0) {
+            offlineMode = true;
+
+            setCursor(0,0);
+            Outstr("Connection failed.");
+            setCursor(0,30);
+            Outstr("OFFLINE mode");
+
+            MAP_UtilsDelay(16000000);
+
+            setCursor(0,0);
+            fillScreen(BLACK);
+        }
+    }
+
+        // initiate server connection
+        if (!attemptedConnection) {
+            long lRetVal = connect_to_server();
+            attemptedConnection = true;
+
+            // show error if connection failed
+                if (lRetVal < 0) {
+                    offlineMode = true;
+
+                    setCursor(0,0);
+                    Outstr("Connection failed.");
+                    setCursor(0,30);
+                    Outstr("OFFLINE mode");
+
+                    MAP_UtilsDelay(16000000);
+
+                    setCursor(0,0);
+                    fillScreen(BLACK);
+                }
+        }
+
+
+
+    // display title page
     titlePage();
+
     mainMenu();
+
 
     unsigned char accelerometer_addr = 0x18;
     unsigned char x_reg = 0x03;
@@ -1079,10 +1396,10 @@ void main()
 
     signed char acc_x, acc_y;
 
-//    int score = 0;
-//    char scoreStr[20];
-//    sprintf(scoreStr, "Score: %d", score);
-//    Outstr(scoreStr);
+    score = 0;
+    char scoreStr[20];
+    sprintf(scoreStr, "Score: %d", score);
+    Outstr(scoreStr);
 
     int ball_x = 64;
     int ball_y = 64;
@@ -1102,9 +1419,7 @@ void main()
     Enemy enemy;
     spawnEnemy(&enemy);
     enemyDefeated = false;
-    dataReady = true;
-
-    displayScore();
+    // dataReady = true;
 
     while (1) {
         //Report("%d ", systick_cnt);
@@ -1225,10 +1540,10 @@ void main()
 
 
         checkIfPlayerHit(ball_x, ball_y, projectiles);
-        checkIfEnemyHit(&enemy, projectiles, 1);
+        checkIfEnemyHit(&enemy, projectiles);
 
 //            // print new score
-            //fillRect(0,0,width(), 8, BLACK);
+//            fillRect(0,0,width(), 8, BLACK);
             //setCursor(0,0);
             //sprintf(scoreStr, "Score: %d", score);
             //Outstr(scoreStr);
