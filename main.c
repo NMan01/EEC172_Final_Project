@@ -69,7 +69,7 @@
 #define DOWN     270
 #define DOWN_RIGHT 315
 #define FIRE_COOLDOWN 25
-#define PLAYER_BULLET_SPEED 10
+int PLAYER_BULLET_SPEED = 10;
 
 #define MAX_ENEMIES 1
 
@@ -151,6 +151,8 @@ Projectile projectiles[MAX_PROJECTILES];
 int num_projectiles = 0;
 int num_enemies = 0;
 bool enemyDefeated = true;
+int globalScore = 0;
+int difficulty = 1;
 
 
 
@@ -456,20 +458,331 @@ void titlePage() {
         }
     }
     dataReady = false;
+    data = 0; //WBTGRFBGNYEHRESBGDNHJYHEGEBHFNYH
     // clear screen
     setCursor(0,0);
     fillScreen(BLACK);
+}
+
+difficultyScreen() {
+    setTextColor(RED, BLACK);
+    setTextSize(1);
+    setCursor(10,0);
+    Outstr("CHOOSE DIFFICULTY");
+    setTextColor(WHITE, BLACK);
+    setCursor(10, 20);
+    setTextSize(1);
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 40);
+    Outstr("Easy");
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 60);
+    Outstr("Medium");
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 80);
+    Outstr("Hard");
+
+    unsigned long localData;
+    //sysTickReset();
+    char* button;
+    static bool buttonPressed = false;
+    bool exitingDiffScreen = false;
+    int selectedOption = 1;
+    dataReady = true;
+
+    while(exitingDiffScreen == false) {
+
+        //int selectedOption = 1;
+        dataReady = true;
+        //Report("button: %s ", button);
+
+        while (1) {
+            if (dataReady)
+            {
+                //data = 4211384160;
+                localData = data;
+                data = 0;
+                dataReady = false;
+
+                //char* button;
+
+                switch (localData)
+                {
+                case 4211384160:
+                    button = " ";
+                    break;
+                case 3125124960:
+                    button = "LeftButton";
+                    Report("LEFT SET ");
+                    break;
+                case 4010844000:
+                    button = "FireButton"; //2
+                    Report("FIRE SET ");
+                    //Confirm Option
+                    break;
+                case 3994132320:
+                    button = "RightButton"; //3
+                    Report("RIGHT SET ");
+                    break;
+                default:
+                    button = "?";
+                    break;
+                }
+                //systick_cnt = 0;
+            }
+            break;
+        }
+
+        if ( strcmp(button, "RightButton") == 0 && !buttonPressed) {
+            if (selectedOption < 3) {
+                selectedOption++;
+            }
+            buttonPressed = true;
+        }
+        else if (strcmp(button, "LeftButton") == 0 && !buttonPressed) {
+            if (selectedOption > 1) {
+                selectedOption--;
+            }
+            buttonPressed = true;
+        }
+        else if (strcmp(button, "FireButton") == 0 && !buttonPressed) {
+
+            exitingDiffScreen = true;
+            //Report("FIRE");
+            buttonPressed = true;
+            //systick_cnt = 0;
+        }
+
+        if (strcmp(button, "LeftButton") != 0 && strcmp(button, "RightButton") != 0 && strcmp(button, "FireButton") != 0) {
+            buttonPressed = false;  // Reset the button press state
+        }
+
+        buttonPressed = false;
+        button = " ";
+
+        if (selectedOption == 1) {
+            fillCircle(10,63,6,BLACK);
+            fillCircle(10,83,6,BLACK);
+            fillCircle(10,43,6,GREEN);
+            drawFastHLine(30, 69, 37, BLACK);
+            drawFastHLine(30, 89, 25, BLACK);
+            drawFastHLine(30, 49, 25, GREEN);
+        } else if (selectedOption == 2) {
+            fillCircle(10,83,6,BLACK);
+            fillCircle(10,43,6,BLACK);
+            fillCircle(10,63,6,GREEN);
+            drawFastHLine(30, 49, 25, BLACK);
+            drawFastHLine(30, 89, 25, BLACK);
+            drawFastHLine(30, 69, 37, GREEN);
+        } else if (selectedOption == 3) {
+            fillCircle(10,43,6, BLACK);
+            fillCircle(10,63,6,BLACK);
+            fillCircle(10,83,6,GREEN);
+            drawFastHLine(30, 69, 37, BLACK);
+            drawFastHLine(30, 49, 25, BLACK);
+            drawFastHLine(30, 89, 25, GREEN);
+        }
+
+        dataReady = false;
+    }
+
+    setCursor(0,0);
+    fillScreen(BLACK);
+
+    if (selectedOption == 1) {
+        difficulty = 1;
+        PLAYER_BULLET_SPEED = 10;
+    } else if (selectedOption == 2) {
+       difficulty = 2;
+       PLAYER_BULLET_SPEED = 15;
+    } else if (selectedOption == 3) {
+        difficulty = 3;
+        PLAYER_BULLET_SPEED = 25;
+    }
+
+    mainMenu();
+}
+
+leaderboardScreen() {
+    setTextColor(RED, BLACK);
+    setTextSize(2);
+    setCursor(10,0);
+    Outstr("TOP SCORE");
+    setTextColor(WHITE, BLACK);
+    setCursor(10, 60);
+    setTextSize(1);
+    Outstr("[TOP SCORE]");
+
+    setTextColor(WHITE, BLACK);
+    setCursor(0, 121);
+    Outstr("Press any button");
+
+    // wait for button press
+    while (1) {
+        if (dataReady) {
+            break;
+        }
+    }
+    dataReady = false;
+    data = 0; //WBTGRFBGNYEHRESBGDNHJYHEGEBHFNYH
+    // clear screen
+    setCursor(0,0);
+    fillScreen(BLACK);
+}
+
+mainMenu() {
+
+    setTextColor(RED, BLACK);
+    setTextSize(2);
+    setCursor(10,0);
+    Outstr("MAIN MENU");
+    setTextColor(WHITE, BLACK);
+    setCursor(10, 20);
+    setTextSize(1);
+    Outstr("Select an Option");
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 40);
+    Outstr("Play");
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 60);
+    Outstr("Set Difficulty");
+    setTextColor(BLUE, BLACK);
+    setCursor(30, 80);
+    Outstr("Top Score");
+
+    unsigned long localData;
+    //sysTickReset();
+    char* button;
+    static bool buttonPressed = false;
+    bool exitingMainMenu = false;
+    int selectedOption = 1;
+    dataReady = true;
+
+    while(exitingMainMenu == false) {
+
+        //int selectedOption = 1;
+        dataReady = true;
+        //Report("button: %s ", button);
+
+        while (1) {
+            if (dataReady)
+            {
+                //data = 4211384160;
+                localData = data;
+                data = 0;
+                dataReady = false;
+
+                //char* button;
+
+                switch (localData)
+                {
+                case 4211384160:
+                    button = " ";
+                    break;
+                case 3125124960:
+                    button = "LeftButton";
+                    Report("LEFT SET ");
+                    break;
+                case 4010844000:
+                    button = "FireButton"; //2
+                    Report("FIRE SET ");
+                    //Confirm Option
+                    break;
+                case 3994132320:
+                    button = "RightButton"; //3
+                    Report("RIGHT SET ");
+                    break;
+                default:
+                    button = "?";
+                    break;
+                }
+                //systick_cnt = 0;
+            }
+            break;
+        }
+
+        if ( strcmp(button, "RightButton") == 0 && !buttonPressed) {
+            if (selectedOption < 3) {
+                selectedOption++;
+            }
+            buttonPressed = true;
+        }
+        else if (strcmp(button, "LeftButton") == 0 && !buttonPressed) {
+            if (selectedOption > 1) {
+                selectedOption--;
+            }
+            buttonPressed = true;
+        }
+        else if (strcmp(button, "FireButton") == 0 && !buttonPressed) {
+
+            exitingMainMenu = true;
+            //Report("FIRE");
+            buttonPressed = true;
+            //systick_cnt = 0;
+        }
+
+        if (strcmp(button, "LeftButton") != 0 && strcmp(button, "RightButton") != 0 && strcmp(button, "FireButton") != 0) {
+            buttonPressed = false;  // Reset the button press state
+        }
+
+        buttonPressed = false;
+        button = " ";
+
+        if (selectedOption == 1) {
+            fillCircle(10,63,6,BLACK);
+            fillCircle(10,83,6,BLACK);
+            fillCircle(10,43,6,GREEN);
+            drawFastHLine(30, 69, 85, BLACK);
+            drawFastHLine(30, 89, 55, BLACK);
+            drawFastHLine(30, 49, 25, GREEN);
+        } else if (selectedOption == 2) {
+            fillCircle(10,83,6,BLACK);
+            fillCircle(10,43,6,BLACK);
+            fillCircle(10,63,6,GREEN);
+            drawFastHLine(30, 49, 25, BLACK);
+            drawFastHLine(30, 89, 55, BLACK);
+            drawFastHLine(30, 69, 85, GREEN);
+        } else if (selectedOption == 3) {
+            fillCircle(10,43,6, BLACK);
+            fillCircle(10,63,6,BLACK);
+            fillCircle(10,83,6,GREEN);
+            drawFastHLine(30, 69, 85, BLACK);
+            drawFastHLine(30, 49, 25, BLACK);
+            drawFastHLine(30, 89, 55, GREEN);
+        }
+
+        dataReady = false;
+    }
+
+    setCursor(0,0);
+    fillScreen(BLACK);
+
+    if (selectedOption == 2) {
+        difficultyScreen();
+        mainMenu();
+    } else if (selectedOption == 3) {
+        leaderboardScreen();
+        mainMenu();
+
+    }
 }
 
 //ENEMY TANK FUNCTIONS
 
 void spawnEnemy(Enemy* enemy) {
 
+    if (difficulty == 3) {
+        enemy->cooldown = 5;
+    } else if (difficulty == 2) {
+        enemy->cooldown = 15;
+    } else {
+        enemy->cooldown = 25;
+    }
 
     enemy->xPos = (rand() % (width()-12)) + 8;
     enemy->yPos = (rand() % (height()-20)) + 16;
     enemy->cannonDirection = DOWN;
-    enemy->cooldown = 25;
+    //enemy->cooldown = 25;
     enemy ->isAlive = true;
     enemy->lastTimeFired = 0;
     drawCircle(enemy->xPos, enemy->yPos, 6, RED);
@@ -582,7 +895,7 @@ void checkIfPlayerHit(int playerXPos, int playerYPos, Projectile projectiles[]) 
     }
 }
 
-int checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
+void checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
     int i;
     for (i = 0; i < num_projectiles; i++) {
         if (projectiles[i].isFriendlyProjectile == true) {
@@ -621,14 +934,17 @@ int checkIfEnemyHit(Enemy* enemy, Projectile projectiles[], int score) {
 
                 enemyDefeated = true;
                 score++;
+                globalScore++;
                 Report("Score: %d ", score);
+                Report("GlobalScore: %d ", globalScore);
                 //print new score
                 //fillRect(0,0,width(), 8, BLACK);
                 //char scoreStr[20];
                 //setCursor(0,0);
                 //sprintf(scoreStr, "Score: %d", score);
                 //Outstr(scoreStr);
-                return score;
+                displayScore();
+                //return score;
 
             }
         }
@@ -672,6 +988,16 @@ void gameOverScreen() {
     // clear screen
     fillScreen(BLACK);
 }
+
+void displayScore() {
+            // print new score
+    //int score = 0;
+    setCursor(0,0);
+    char scoreStr[20];
+    sprintf(scoreStr, "Score: %d", globalScore);
+    Outstr(scoreStr);
+}
+
 
 void main()
 {
@@ -745,6 +1071,7 @@ void main()
     fillScreen(BLACK);
 
     titlePage();
+    mainMenu();
 
     unsigned char accelerometer_addr = 0x18;
     unsigned char x_reg = 0x03;
@@ -752,10 +1079,10 @@ void main()
 
     signed char acc_x, acc_y;
 
-    int score = 0;
-    char scoreStr[20];
-    sprintf(scoreStr, "Score: %d", score);
-    Outstr(scoreStr);
+//    int score = 0;
+//    char scoreStr[20];
+//    sprintf(scoreStr, "Score: %d", score);
+//    Outstr(scoreStr);
 
     int ball_x = 64;
     int ball_y = 64;
@@ -774,7 +1101,10 @@ void main()
     //initial enemy spawned
     Enemy enemy;
     spawnEnemy(&enemy);
+    enemyDefeated = false;
     dataReady = true;
+
+    displayScore();
 
     while (1) {
         //Report("%d ", systick_cnt);
@@ -895,10 +1225,10 @@ void main()
 
 
         checkIfPlayerHit(ball_x, ball_y, projectiles);
-        score = checkIfEnemyHit(&enemy, projectiles, score);
+        checkIfEnemyHit(&enemy, projectiles, 1);
 
 //            // print new score
-//            fillRect(0,0,width(), 8, BLACK);
+            //fillRect(0,0,width(), 8, BLACK);
             //setCursor(0,0);
             //sprintf(scoreStr, "Score: %d", score);
             //Outstr(scoreStr);
